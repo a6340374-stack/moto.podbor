@@ -100,18 +100,56 @@ window.MP = {
   // они пришлют access key, его и вставьте сюда вместо строки ниже.
   web3formsKey: "33331dea-6cb3-4776-8c1c-72505ab4abd2",
 
-  // Необязательный дубль заявки в Telegram через ретранслятор (Google Apps Script).
-  // Прямой запрос в api.telegram.org в РФ заблокирован, поэтому идём через релей.
-  // Как настроить — см. инструкцию. Пока строка пустая — дубль в Telegram отключён.
-  telegramRelayUrl: "https://script.google.com/macros/s/AKfycbxRO23Ssr2wQjI1YYb5oc6aWb90SlL71e-ZnOEXj2OAMQyMaMwqPBclLGePh2P7zT4/exec"
+  // Дубль заявки в Telegram. Чтобы доходило И с VPN, И без, идём двумя путями:
+  //   direct  — напрямую в Telegram (работает с VPN / вне РФ);
+  //   relayUrl — через ретранслятор Google Apps Script (работает в РФ без VPN).
+  // Сначала пробуем direct, и только если он не прошёл — relayUrl. Поэтому
+  // сообщение приходит ровно одно в любом случае. Любое поле можно оставить
+  // пустым — тогда соответствующий путь просто не используется.
+  telegram: {
+    token: "8652997435:AAGiUChaVqZ0L_qBQOo9ggHsKpQ2XQGj6JY",
+    chatId: "-1003711932665",
+    relayUrl: "https://script.google.com/macros/s/AKfycbxI7f8i60nuY53ZW52yADRpQ3zpbZBe1XZZvBuuZ1anfLhm-rXrsuSaAOpSb7aaGUo/exec"
+  }
 };
 
-/* Отправка заявки на email через Web3Forms.
-   Читает поля формы по порядку внутри #sheet — работает во всех версиях сайта,
-   независимо от наличия id у input/textarea.
-   Используется вместо прямого запроса в Telegram: домен api.telegram.org
-   заблокирован в РФ, поэтому без VPN заявки не доходили. Web3Forms доступен
-   без VPN и не требует своего сервера.
+/* Дубль заявки в Telegram двумя путями, чтобы доходило и с VPN, и без.
+   Сначала пробуем напрямую (api.telegram.org — открыт при VPN/вне РФ); если за
+   ~4 сек не получилось — уходим на ретранслятор Google (открыт в РФ без VPN).
+   Так приходит ровно одно сообщение в любом случае. Фоном, на успех формы не влияет. */
+function sendTelegram(text) {
+  const cfg = window.MP.telegram || {};
+
+  const viaRelay = function () {
+    if (!cfg.relayUrl) return;
+    try {
+      fetch(cfg.relayUrl, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ text: text })
+      }).catch(function () {});
+    } catch (e) { /* запасной путь — молча игнорируем */ }
+  };
+
+  if (!cfg.token || !cfg.chatId) { viaRelay(); return; }
+
+  const ctrl = ('AbortController' in window) ? new AbortController() : null;
+  const timer = ctrl ? setTimeout(function () { ctrl.abort(); }, 4000) : null;
+  fetch('https://api.telegram.org/bot' + cfg.token + '/sendMessage', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ chat_id: cfg.chatId, text: text, disable_web_page_preview: true }),
+    signal: ctrl ? ctrl.signal : undefined
+  })
+    .then(function (r) { if (timer) clearTimeout(timer); return r.json(); })
+    .then(function (d) { if (!d || !d.ok) throw new Error('tg direct not ok'); })
+    .catch(function () { if (timer) clearTimeout(timer); viaRelay(); });
+}
+
+/* Отправка заявки на email через Web3Forms (основной, подтверждаемый канал).
+   Домен api.telegram.org в РФ заблокирован, поэтому письмо — надёжная база, а
+   доставку в Telegram берёт на себя sendTelegram() (см. выше).
    Возвращает Promise<boolean> — true, если сервис реально принял заявку. */
 window.sendLead = function () {
   const sheet = document.getElementById('sheet');
@@ -120,24 +158,14 @@ window.sendLead = function () {
   const name = val(0), phone = val(1), moto = val(2);
   const site = (document.title || '').trim();
 
-  // Дубль в Telegram — фоном, «как получится» (по нему успех формы НЕ определяем).
-  // Запрос идёт через релей с mode:'no-cors', чтобы обойти и блокировку, и CORS.
-  if (window.MP.telegramRelayUrl) {
-    const tgText =
-      '🏍 Новая заявка с сайта\n\n' +
-      '👤 Имя: ' + (name || '—') + '\n' +
-      '📞 Контакт: ' + (phone || '—') + '\n' +
-      '🔧 Мотоцикл: ' + (moto || '—') + '\n\n' +
-      '🌐 ' + site;
-    try {
-      fetch(window.MP.telegramRelayUrl, {
-        method: 'POST',
-        mode: 'no-cors',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ text: tgText })
-      }).catch(function () {});
-    } catch (e) { /* дубль необязателен — молча игнорируем */ }
-  }
+  // Дубль в Telegram — фоном (с VPN и без), на успех формы не влияет.
+  sendTelegram(
+    '🏍 Новая заявка с сайта\n\n' +
+    '👤 Имя: ' + (name || '—') + '\n' +
+    '📞 Контакт: ' + (phone || '—') + '\n' +
+    '🔧 Мотоцикл: ' + (moto || '—') + '\n\n' +
+    '🌐 ' + site
+  );
 
   const payload = {
     access_key: window.MP.web3formsKey,
