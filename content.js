@@ -98,7 +98,12 @@ window.MP = {
   // Приём заявок через Web3Forms (заявки приходят на email).
   // Получите бесплатный ключ на https://web3forms.com — введите свою почту,
   // они пришлют access key, его и вставьте сюда вместо строки ниже.
-  web3formsKey: "33331dea-6cb3-4776-8c1c-72505ab4abd2"
+  web3formsKey: "ВСТАВЬТЕ-СЮДА-ACCESS-KEY",
+
+  // Необязательный дубль заявки в Telegram через ретранслятор (Google Apps Script).
+  // Прямой запрос в api.telegram.org в РФ заблокирован, поэтому идём через релей.
+  // Как настроить — см. инструкцию. Пока строка пустая — дубль в Telegram отключён.
+  telegramRelayUrl: ""
 };
 
 /* Отправка заявки на email через Web3Forms.
@@ -113,6 +118,26 @@ window.sendLead = function () {
   const fields = sheet ? sheet.querySelectorAll('input, textarea') : [];
   const val = i => (fields[i] && fields[i].value ? fields[i].value.trim() : '');
   const name = val(0), phone = val(1), moto = val(2);
+  const site = (document.title || '').trim();
+
+  // Дубль в Telegram — фоном, «как получится» (по нему успех формы НЕ определяем).
+  // Запрос идёт через релей с mode:'no-cors', чтобы обойти и блокировку, и CORS.
+  if (window.MP.telegramRelayUrl) {
+    const tgText =
+      '🏍 Новая заявка с сайта\n\n' +
+      '👤 Имя: ' + (name || '—') + '\n' +
+      '📞 Контакт: ' + (phone || '—') + '\n' +
+      '🔧 Мотоцикл: ' + (moto || '—') + '\n\n' +
+      '🌐 ' + site;
+    try {
+      fetch(window.MP.telegramRelayUrl, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ text: tgText })
+      }).catch(function () {});
+    } catch (e) { /* дубль необязателен — молча игнорируем */ }
+  }
 
   const payload = {
     access_key: window.MP.web3formsKey,
@@ -121,7 +146,7 @@ window.sendLead = function () {
     'Имя': name || '—',
     'Контакт': phone || '—',
     'Мотоцикл / ссылка': moto || '—',
-    'Страница': (document.title || '').trim()
+    'Страница': site
   };
 
   return fetch('https://api.web3forms.com/submit', {
