@@ -103,7 +103,7 @@ window.MP = {
   // Необязательный дубль заявки в Telegram через ретранслятор (Google Apps Script).
   // Прямой запрос в api.telegram.org в РФ заблокирован, поэтому идём через релей.
   // Как настроить — см. инструкцию. Пока строка пустая — дубль в Telegram отключён.
-  telegramRelayUrl: "https://script.google.com/macros/s/AKfycbxI7f8i60nuY53ZW52yADRpQ3zpbZBe1XZZvBuuZ1anfLhm-rXrsuSaAOpSb7aaGUo/exec"
+  telegramRelayUrl: "https://script.google.com/macros/s/AKfycbzioTGyCwrqLTwpdw3pQr5PXK1raXvZ0S5FVTuRR4iUvA2azjePRb-aw2FdOrRZcMs/exec"
 };
 
 /* Отправка заявки на email через Web3Forms.
