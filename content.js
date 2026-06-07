@@ -98,12 +98,12 @@ window.MP = {
   // Приём заявок через Web3Forms (заявки приходят на email).
   // Получите бесплатный ключ на https://web3forms.com — введите свою почту,
   // они пришлют access key, его и вставьте сюда вместо строки ниже.
-  web3formsKey: "ВСТАВЬТЕ-СЮДА-ACCESS-KEY",
+  web3formsKey: "33331dea-6cb3-4776-8c1c-72505ab4abd2",
 
   // Необязательный дубль заявки в Telegram через ретранслятор (Google Apps Script).
   // Прямой запрос в api.telegram.org в РФ заблокирован, поэтому идём через релей.
   // Как настроить — см. инструкцию. Пока строка пустая — дубль в Telegram отключён.
-  telegramRelayUrl: ""
+  telegramRelayUrl: "https://script.google.com/macros/s/AKfycbxI7f8i60nuY53ZW52yADRpQ3zpbZBe1XZZvBuuZ1anfLhm-rXrsuSaAOpSb7aaGUo/exec"
 };
 
 /* Отправка заявки на email через Web3Forms.
