@@ -95,46 +95,47 @@ window.MP = {
 
   guarantees: ["Документы проверены", "Гарантия на работы", "Срочные заказы", "Выезд к клиенту", "Работаю 7 дней в неделю"],
 
-  // Telegram-бот для заявок
-  tg: {
-    token: "8652997435:AAGiUChaVqZ0L_qBQOo9ggHsKpQ2XQGj6JY",
-    chatId: "-1003711932665"
-  }
+  // Приём заявок через Web3Forms (заявки приходят на email).
+  // Получите бесплатный ключ на https://web3forms.com — введите свою почту,
+  // они пришлют access key, его и вставьте сюда вместо строки ниже.
+  web3formsKey: "ВСТАВЬТЕ-СЮДА-ACCESS-KEY"
 };
 
-/* Отправка заявки в Telegram-группу.
+/* Отправка заявки на email через Web3Forms.
    Читает поля формы по порядку внутри #sheet — работает во всех версиях сайта,
    независимо от наличия id у input/textarea.
-   Текст отправляется БЕЗ parse_mode: ссылки с Авито содержат символы вроде «_»,
-   которые ломают Markdown-разметку и приводят к ошибке 400 (заявка не доходит).
-   Возвращает Promise<boolean> — true, если Telegram реально принял сообщение. */
+   Используется вместо прямого запроса в Telegram: домен api.telegram.org
+   заблокирован в РФ, поэтому без VPN заявки не доходили. Web3Forms доступен
+   без VPN и не требует своего сервера.
+   Возвращает Promise<boolean> — true, если сервис реально принял заявку. */
 window.sendLead = function () {
   const sheet = document.getElementById('sheet');
   const fields = sheet ? sheet.querySelectorAll('input, textarea') : [];
   const val = i => (fields[i] && fields[i].value ? fields[i].value.trim() : '');
   const name = val(0), phone = val(1), moto = val(2);
 
-  const site = (document.title || '').trim();
-  const text =
-    '🏍 Новая заявка с сайта\n\n' +
-    '👤 Имя: ' + (name || '—') + '\n' +
-    '📞 Контакт: ' + (phone || '—') + '\n' +
-    '🔧 Мотоцикл: ' + (moto || '—') + '\n\n' +
-    '🌐 ' + site;
+  const payload = {
+    access_key: window.MP.web3formsKey,
+    subject: '🏍 Новая заявка с сайта — Мотоподбор',
+    from_name: 'Сайт «Дмитрий · Мотоподбор»',
+    'Имя': name || '—',
+    'Контакт': phone || '—',
+    'Мотоцикл / ссылка': moto || '—',
+    'Страница': (document.title || '').trim()
+  };
 
-  const { token, chatId } = window.MP.tg;
-  return fetch('https://api.telegram.org/bot' + token + '/sendMessage', {
+  return fetch('https://api.web3forms.com/submit', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ chat_id: chatId, text, disable_web_page_preview: true })
+    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+    body: JSON.stringify(payload)
   })
-    .then(function (r) { return r.json().catch(function () { return { ok: false }; }); })
+    .then(function (r) { return r.json().catch(function () { return { success: false }; }); })
     .then(function (data) {
-      if (!data || !data.ok) {
-        console.error('Telegram API error:', data);
+      if (!data || !data.success) {
+        console.error('Web3Forms error:', data);
         return false;
       }
       return true;
     })
-    .catch(function (e) { console.error('Telegram send error:', e); return false; });
+    .catch(function (e) { console.error('Lead send error:', e); return false; });
 };
