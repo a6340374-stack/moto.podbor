@@ -98,7 +98,7 @@ window.MP = {
   // Приём заявок через Web3Forms (заявки приходят на email).
   // Получите бесплатный ключ на https://web3forms.com — введите свою почту,
   // они пришлют access key, его и вставьте сюда вместо строки ниже.
-  web3formsKey: "ВСТАВЬТЕ-СЮДА-ACCESS-KEY"
+  web3formsKey: "33331dea-6cb3-4776-8c1c-72505ab4abd2"
 };
 
 /* Отправка заявки на email через Web3Forms.
